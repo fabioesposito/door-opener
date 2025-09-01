@@ -67,7 +67,7 @@
             toaster.style.backgroundColor = ''; // Reset background color
 
             try {
-                const response = await fetch('/doorbell', {
+                const response = await fetch('/api/doorbell', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
