@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 )
 
@@ -22,10 +23,25 @@ func init() {
 func main() {
 	http.HandleFunc("/", index)
 	http.HandleFunc("/login", login)
-	http.HandleFunc("/dashboard", dashboard)
-	http.HandleFunc("/doorbell", doorbell)
+	http.Handle("/dashboard", checkAuth(http.HandlerFunc(dashboard)))
+	http.Handle("/doorbell", checkAuth(http.HandlerFunc(doorbell)))
 	log.Println("app started...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+func checkAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("authenticated")
+		if err != nil || cookie.Value != "true" {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
