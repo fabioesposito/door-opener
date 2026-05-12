@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"html/template"
 	"log"
 	"net/http"
@@ -20,18 +21,16 @@ func init() {
 	}
 	tpl = template.Must(template.ParseGlob("templates/*.gohtml"))
 
-	// Initialize the session store with a secret key
-	// In production, this should be a strong random key from environment variables
 	sessionKey := os.Getenv("SESSION_SECRET")
 	if sessionKey == "" {
-		sessionKey = "default-session-secret-change-in-production"
-		log.Println("Warning: Using default session secret. Set SESSION_SECRET env variable in production.")
+		log.Fatal("SESSION_SECRET environment variable is required")
 	}
 	store = sessions.NewCookieStore([]byte(sessionKey))
 	store.Options = &sessions.Options{
 		Path:     "/",
-		MaxAge:   86400 * 7, // 7 days
+		MaxAge:   86400 * 7,
 		HttpOnly: true,
+		Secure:   true,
 	}
 }
 
@@ -90,7 +89,9 @@ func checkAuth(next http.Handler) http.Handler {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	tpl.ExecuteTemplate(w, "login.gohtml", nil)
+	if err := tpl.ExecuteTemplate(w, "login.gohtml", nil); err != nil {
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+	}
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -105,10 +106,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// In a real application, you'd hash and compare passwords securely.
-	// For this example, we'll do a direct comparison.
-	if r.FormValue("password") == password {
-		// Set user as authenticated in the session
+	input := r.FormValue("password")
+	if subtle.ConstantTimeCompare([]byte(input), []byte(password)) == 1 {
 		session, err := store.Get(r, "door-opener-session")
 		if err != nil {
 			http.Error(w, "Session error", http.StatusInternalServerError)
@@ -116,8 +115,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		session.Values["authenticated"] = true
-		err = session.Save(r, w)
-		if err != nil {
+		if err := session.Save(r, w); err != nil {
 			http.Error(w, "Failed to save session", http.StatusInternalServerError)
 			return
 		}
@@ -126,12 +124,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+	if err := tpl.ExecuteTemplate(w, "login.gohtml", map[string]string{"Error": "Invalid password"}); err != nil {
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+	}
 }
 
 func dashboard(w http.ResponseWriter, r *http.Request) {
-	// In a real application, you'd check for a valid session here.
-	tpl.ExecuteTemplate(w, "dashboard.gohtml", nil)
+	if err := tpl.ExecuteTemplate(w, "dashboard.gohtml", nil); err != nil {
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+	}
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
@@ -141,12 +142,10 @@ func logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clear the session
 	session.Values["authenticated"] = false
-	session.Options.MaxAge = -1 // Delete the cookie
+	session.Options.MaxAge = -1
 
-	err = session.Save(r, w)
-	if err != nil {
+	if err := session.Save(r, w); err != nil {
 		http.Error(w, "Failed to save session", http.StatusInternalServerError)
 		return
 	}
@@ -155,6 +154,11 @@ func logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func doorbell(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	log.Println("Doorbell pressed! Making GET request to Shelly...")
 
 	shellyIP := os.Getenv("SHELLY_IP")
@@ -184,5 +188,7 @@ func doorbell(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Doorbell triggered successfully!")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	if _, err := w.Write([]byte("OK")); err != nil {
+		log.Printf("Error writing response: %v\n", err)
+	}
 }

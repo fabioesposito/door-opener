@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
@@ -17,6 +17,6 @@ WORKDIR /app
 COPY --from=builder /app/door-opener .
 COPY templates ./templates
 
-EXPOSE 8080
+EXPOSE 8881
 
 CMD ["./door-opener"]

@@ -24,23 +24,12 @@
 
         .toast.show {
             visibility: visible;
-            -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
             animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        }
-
-        @-webkit-keyframes fadein {
-            from {bottom: 0; opacity: 0;}
-            to {bottom: 30px; opacity: 1;}
         }
 
         @keyframes fadein {
             from {bottom: 0; opacity: 0;}
             to {bottom: 30px; opacity: 1;}
-        }
-
-        @-webkit-keyframes fadeout {
-            from {bottom: 30px; opacity: 1;}
-            to {bottom: 0; opacity: 0;}
         }
 
         @keyframes fadeout {
@@ -53,18 +42,26 @@
     <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm text-center">
         <h1 class="text-2xl font-bold mb-6">Welcome to your Dashboard!</h1>
         <button id="doorbellButton"
-                class="w-full bg-green-500 text-white py-3 px-6 rounded-full text-lg font-semibold hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                class="w-full bg-green-500 text-white py-3 px-6 rounded-full text-lg font-semibold hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
             Doorbell
         </button>
+        <a href="/logout"
+           class="block mt-4 w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+            Logout
+        </a>
     </div>
 
     <div id="toaster" class="toast"></div>
 
     <script>
         document.getElementById('doorbellButton').addEventListener('click', async () => {
+            const button = document.getElementById('doorbellButton');
             const toaster = document.getElementById('toaster');
-            toaster.className = 'toast'; // Reset classes
-            toaster.style.backgroundColor = ''; // Reset background color
+            toaster.className = 'toast';
+            toaster.style.backgroundColor = '';
+
+            button.disabled = true;
+            button.textContent = 'Triggering...';
 
             try {
                 const response = await fetch('/api/doorbell', {
@@ -75,22 +72,25 @@
                 });
 
                 if (response.ok) {
-                    toaster.style.backgroundColor = '#4CAF50'; // Green
+                    toaster.style.backgroundColor = '#4CAF50';
                     toaster.textContent = 'Doorbell triggered successfully!';
                 } else {
                     const errorText = await response.text();
-                    toaster.style.backgroundColor = '#f44336'; // Red
+                    toaster.style.backgroundColor = '#f44336';
                     toaster.textContent = `Error: ${errorText}`;
                 }
             } catch (error) {
-                toaster.style.backgroundColor = '#f44336'; // Red
+                toaster.style.backgroundColor = '#f44336';
                 toaster.textContent = `Network Error: ${error.message}`;
             }
+
+            button.disabled = false;
+            button.textContent = 'Doorbell';
 
             toaster.classList.add('show');
             setTimeout(() => {
                 toaster.classList.remove('show');
-            }, 3000); // Hide after 3 seconds
+            }, 3000);
         });
     </script>
 </body>

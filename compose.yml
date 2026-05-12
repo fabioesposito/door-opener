@@ -1,0 +1,11 @@
+services:
+  door-opener:
+    build: .
+    ports:
+      - "8881:8881"
+    environment:
+      - SESSION_SECRET=${SESSION_SECRET}
+      - APP_PORT=8881
+      - APP_PASSWORD=${APP_PASSWORD}
+      - SHELLY_IP=${SHELLY_IP}
+    restart: unless-stopped
